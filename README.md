@@ -21,13 +21,12 @@
 ## 🏗️ Architecture & Data Flow
 
 ```mermaid
-graph TD
-    User([Operations Team / Evaluator]) -->|Interacts with UI| NextJS[Next.js 15 App Router Frontend]
-    NextJS -->|REST API Requests| API[Next.js Route Handlers /api]
-    NextJS <--|Real-time SSE Stream| SSE[/api/live-stream SSE Endpoint]
-    API -->|ORM Data Layer| Prisma[Prisma ORM]
-    Prisma -->|Queries & Mutations| DB[(SQLite / PostgreSQL Database)]
-    SSE -->|Live Event Pings| NextJS
+flowchart TD
+    User["Operations Team / Evaluator"] -->|Interacts with UI| NextJS["Next.js 15 App Router Frontend"]
+    NextJS -->|REST API Requests| API["Next.js Route Handlers /api"]
+    SSE["/api/live-stream SSE Endpoint"] -->|Real-time SSE Stream| NextJS
+    API -->|ORM Data Layer| Prisma["Prisma ORM"]
+    Prisma -->|Queries & Mutations| DB[("SQLite / PostgreSQL Database")]
 ```
 
 ---
@@ -60,7 +59,7 @@ npm install
 
 # Push database schema & seed 560+ realistic records
 npx prisma db push
-node prisma/seed.js
+npm run prisma:seed
 
 # Start local development server
 npm run dev
