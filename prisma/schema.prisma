@@ -1,0 +1,73 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Customer {
+  id          String    @id @default(uuid())
+  name        String
+  email       String    @unique
+  phone       String
+  city        String
+  avatarUrl   String?
+  totalSpent  Float     @default(0)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  bookings    Booking[]
+}
+
+model Mechanic {
+  id              String    @id @default(uuid())
+  name            String
+  phone           String
+  email           String    @unique
+  avatarUrl       String?
+  status          String    @default("AVAILABLE") // AVAILABLE, ON_DUTY, IN_TRANSIT, BUSY, OFFLINE
+  rating          Float     @default(4.8)
+  jobsCompleted   Int       @default(0)
+  currentLat      Float     @default(28.6139)
+  currentLng      Float     @default(77.2090)
+  specialization  String    @default("General Maintenance")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  bookings        Booking[]
+}
+
+model ServiceCategory {
+  id          String    @id @default(uuid())
+  name        String    @unique
+  description String
+  basePrice   Float
+  iconName    String
+  bookings    Booking[]
+}
+
+model Booking {
+  id                String          @id @default(uuid())
+  bookingNumber     String          @unique
+  customerId        String
+  customer          Customer        @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  mechanicId        String?
+  mechanic          Mechanic?       @relation(fields: [mechanicId], references: [id], onDelete: SetNull)
+  serviceCategoryId String
+  serviceCategory   ServiceCategory @relation(fields: [serviceCategoryId], references: [id])
+  vehicleMake       String
+  vehicleModel      String
+  vehicleYear       Int
+  licensePlate      String
+  status            String          @default("PENDING") // PENDING, ASSIGNED, IN_TRANSIT, IN_PROGRESS, COMPLETED, CANCELLED
+  amount            Float
+  paymentStatus     String          @default("PAID") // PAID, PENDING, REFUNDED
+  paymentMethod     String          @default("UPI") // CARD, UPI, CASH, NET_BANKING
+  address           String
+  notes             String?
+  rating            Int?
+  feedback          String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  completedAt       DateTime?
+}
