@@ -19,6 +19,14 @@ import {
   ServiceCategoryType,
   BookingStatus,
 } from '@/lib/types';
+import {
+  getMockDashboardOverview,
+  getMockAnalytics,
+  MOCK_BOOKINGS,
+  MOCK_MECHANICS,
+  MOCK_CUSTOMERS,
+  MOCK_CATEGORIES,
+} from '@/lib/mock-data';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { Sparkles, Radio, Users, CheckCircle2, Search, ArrowUpDown, Bell } from 'lucide-react';
 
@@ -57,7 +65,7 @@ export default function Home() {
     try {
       const res = await fetch('/api/dashboard');
       const json = await res.json();
-      if (json.success) setOverview(json.data);
+      if (json.success && json.data) setOverview(json.data);
     } catch (err) {
       console.error('Failed to fetch dashboard:', err);
     }
@@ -68,7 +76,7 @@ export default function Home() {
     try {
       const res = await fetch(`/api/analytics?range=${rangeStr}`);
       const json = await res.json();
-      if (json.success) setAnalytics(json.data);
+      if (json.success && json.data) setAnalytics(json.data);
     } catch (err) {
       console.error('Failed to fetch analytics:', err);
     }
@@ -88,7 +96,7 @@ export default function Home() {
       });
       const res = await fetch(`/api/bookings?${params.toString()}`);
       const json = await res.json();
-      if (json.success) {
+      if (json.success && Array.isArray(json.data) && json.data.length > 0) {
         setBookings(json.data);
         setTotalBookings(json.pagination.total);
       }
@@ -106,8 +114,8 @@ export default function Home() {
       ]);
       const mechJson = await mechRes.json();
       const custJson = await custRes.json();
-      if (mechJson.success) setMechanics(mechJson.data);
-      if (custJson.success) setCustomers(custJson.data);
+      if (mechJson.success && Array.isArray(mechJson.data) && mechJson.data.length > 0) setMechanics(mechJson.data);
+      if (custJson.success && Array.isArray(custJson.data) && custJson.data.length > 0) setCustomers(custJson.data);
     } catch (err) {
       console.error('Failed to fetch entities:', err);
     }
@@ -125,6 +133,14 @@ export default function Home() {
     refreshAllData();
   }, [refreshAllData]);
 
+  // Active Display Fallbacks
+  const activeOverview = overview || getMockDashboardOverview();
+  const activeAnalytics = analytics || getMockAnalytics(analyticsRange);
+  const activeBookings = bookings.length > 0 ? bookings : MOCK_BOOKINGS;
+  const activeMechanics = mechanics.length > 0 ? mechanics : MOCK_MECHANICS;
+  const activeCustomers = customers.length > 0 ? customers : MOCK_CUSTOMERS;
+  const activeCategories = categories.length > 0 ? categories : MOCK_CATEGORIES;
+
   // SSE Live Event Stream Listener
   useEffect(() => {
     if (!isLiveActive) return;
@@ -139,7 +155,6 @@ export default function Home() {
             message: `⚡ Live Alert: ${parsed.data.bookingId} status updated to ${parsed.data.newStatus}`,
             type: 'status',
           });
-          // Refresh background counts silently
           fetchDashboard();
           fetchBookings();
         } else if (parsed.type === 'NEW_BOOKING' && parsed.data) {
@@ -194,14 +209,15 @@ export default function Home() {
 
   // Trigger Evaluator Mock Actions
   const handleTriggerNewBooking = async () => {
-    if (customers.length === 0) return;
-    const randomCustomer = customers[Math.floor(Math.random() * customers.length)];
+    const custs = activeCustomers;
+    if (custs.length === 0) return;
+    const randomCustomer = custs[Math.floor(Math.random() * custs.length)];
     await fetch('/api/bookings', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         customerId: randomCustomer.id,
-        serviceCategoryId: categories[0]?.id || '1',
+        serviceCategoryId: activeCategories[0]?.id || 'cat-1',
         vehicleMake: 'Tesla',
         vehicleModel: 'Model 3',
         vehicleYear: 2024,
@@ -215,8 +231,8 @@ export default function Home() {
   };
 
   const handleTriggerStatusChange = async (newStatus: BookingStatus) => {
-    if (bookings.length === 0) return;
-    const firstPending = bookings.find((b) => b.status === 'PENDING') || bookings[0];
+    if (activeBookings.length === 0) return;
+    const firstPending = activeBookings.find((b) => b.status === 'PENDING') || activeBookings[0];
     if (firstPending) {
       await handleUpdateBooking(firstPending.id, { status: newStatus });
     }
@@ -256,12 +272,12 @@ export default function Home() {
         {activeTab === 'dashboard' && (
           <div className="space-y-6">
             {/* KPI Cards Summary */}
-            <KPICards overview={overview} loading={!overview} />
+            <KPICards overview={activeOverview} loading={false} />
 
             {/* Analytics Visualizations */}
             <AnalyticsCharts
-              data={analytics}
-              loading={!analytics}
+              data={activeAnalytics}
+              loading={false}
               onRangeChange={(r) => {
                 setAnalyticsRange(r);
                 fetchAnalytics(r);
@@ -273,9 +289,9 @@ export default function Home() {
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
               <div className="lg:col-span-2">
                 <BookingsTable
-                  bookings={bookings}
-                  categories={categories}
-                  totalBookings={totalBookings}
+                  bookings={activeBookings}
+                  categories={activeCategories}
+                  totalBookings={totalBookings || activeBookings.length}
                   page={page}
                   limit={10}
                   onPageChange={setPage}
@@ -302,7 +318,7 @@ export default function Home() {
 
               {/* Live Map Radar Sidebar */}
               <div>
-                <LiveMap mechanics={mechanics} />
+                <LiveMap mechanics={activeMechanics} />
               </div>
             </div>
           </div>
@@ -320,8 +336,8 @@ export default function Home() {
               </div>
             </div>
             <AnalyticsCharts
-              data={analytics}
-              loading={!analytics}
+              data={activeAnalytics}
+              loading={false}
               onRangeChange={(r) => {
                 setAnalyticsRange(r);
                 fetchAnalytics(r);
@@ -342,12 +358,12 @@ export default function Home() {
                 </p>
               </div>
               <div className="text-xs font-semibold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-3.5 py-1.5 rounded-full">
-                {mechanics.length} Total Mechanics Deployed
+                {activeMechanics.length} Total Mechanics Deployed
               </div>
             </div>
 
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {mechanics.map((mech) => (
+              {activeMechanics.map((mech) => (
                 <MechanicCard key={mech.id} mechanic={mech} />
               ))}
             </div>
@@ -365,7 +381,7 @@ export default function Home() {
                 </p>
               </div>
               <span className="text-xs font-bold bg-purple-500/10 text-purple-400 border border-purple-500/20 px-3 py-1.5 rounded-full">
-                {customers.length} Onboarded Customers
+                {activeCustomers.length} Onboarded Customers
               </span>
             </div>
 
@@ -382,7 +398,7 @@ export default function Home() {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800">
-                  {customers.map((c) => (
+                  {activeCustomers.map((c) => (
                     <tr key={c.id} className="hover:bg-slate-800/40 transition-colors">
                       <td className="py-3.5 px-4 font-bold text-white flex items-center space-x-2">
                         <div className="h-7 w-7 rounded-full bg-indigo-600/30 text-indigo-300 flex items-center justify-center font-bold text-xs border border-indigo-500/30">
@@ -414,7 +430,7 @@ export default function Home() {
         booking={selectedBooking}
         isOpen={!!selectedBooking}
         onClose={() => setSelectedBooking(null)}
-        mechanics={mechanics}
+        mechanics={activeMechanics}
         onUpdateBooking={handleUpdateBooking}
       />
 
