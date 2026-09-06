@@ -2,7 +2,7 @@ FROM node:20-alpine AS base
 
 # Install dependencies
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
+RUN apk add --no-cache libc6-compat openssl
 WORKDIR /app
 
 COPY package.json package-lock.json* ./
@@ -17,7 +17,7 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED 1
 RUN npx prisma generate
-RUN npm run build
+RUN npx next build
 
 # Production runner
 FROM base AS runner
