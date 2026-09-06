@@ -1,5 +1,8 @@
 FROM node:20-slim AS base
 
+# Install OpenSSL & CA Certificates in base image
+RUN apt-get update -y && apt-get install -y openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+
 # Install dependencies
 FROM base AS deps
 WORKDIR /app
